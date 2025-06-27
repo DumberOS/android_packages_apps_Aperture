@@ -1734,6 +1734,22 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         )
     }
 
+    private fun changeCameraLeft() {
+        when (this.cameraMode) {
+            CameraMode.PHOTO -> changeCameraMode(CameraMode.QR)
+            CameraMode.VIDEO -> changeCameraMode(CameraMode.PHOTO)
+            CameraMode.QR -> changeCameraMode(CameraMode.VIDEO)
+        }
+    }
+
+    private fun changeCameraRight() {
+        when (this.cameraMode) {
+            CameraMode.PHOTO -> changeCameraMode(CameraMode.VIDEO)
+            CameraMode.VIDEO -> changeCameraMode(CameraMode.QR)
+            CameraMode.QR -> changeCameraMode(CameraMode.PHOTO)
+        }
+    }
+
     /**
      * Change the current camera mode and restarts the stream
      */
@@ -2454,6 +2470,32 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             secureMediaUris.clear()
         } else {
             secureMediaUris.removeIf { !MediaStoreUtils.fileExists(this, it) }
+        }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_UP) {
+            if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                changeCameraLeft()
+                return true
+            }
+            if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                changeCameraRight()
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_UP) {
+                shutterButton.performClick()  // or call your actual capture method
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            findViewById<ViewGroup>(R.id.mainLayout)
+                .descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         }
     }
 
