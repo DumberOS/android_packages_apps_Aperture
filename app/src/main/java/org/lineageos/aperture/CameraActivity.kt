@@ -2491,14 +2491,6 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         return super.dispatchKeyEvent(event)
     }
 
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            findViewById<ViewGroup>(R.id.mainLayout)
-                .descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-        }
-    }
-
     private fun handleHardwareKeyDown(
         keyCode: Int, event: KeyEvent?
     ) = HardwareKey.match(keyCode)?.let { (hardwareKey, tempIncrease) ->
