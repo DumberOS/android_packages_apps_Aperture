@@ -9,6 +9,9 @@
     android:id="@+id/mainLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:focusable="false"
+    android:focusableInTouchMode="false"
+    android:descendantFocusability="blocksDescendants"
     android:background="@android:color/black"
     android:keepScreenOn="true"
     tools:context=".CameraActivity">
