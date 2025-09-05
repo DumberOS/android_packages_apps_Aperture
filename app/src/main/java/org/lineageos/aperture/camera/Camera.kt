@@ -8,8 +8,11 @@ package org.lineageos.aperture.camera
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraMetadata
 import android.os.Build
+import android.media.CamcorderProfile
+import android.util.Log
 import androidx.camera.core.CameraInfo
 import androidx.camera.video.Recorder
+import androidx.camera.video.Quality
 import org.lineageos.aperture.ext.*
 import org.lineageos.aperture.models.CameraFacing
 import org.lineageos.aperture.models.CameraMode
@@ -56,17 +59,34 @@ class Camera(cameraInfo: CameraInfo, model: CameraViewModel) : BaseCamera(camera
         VideoDynamicRange.fromDynamicRange(it)
     }
 
-    private val videoQualityForDynamicRanges = supportedVideoDynamicRanges.associateWith {
-        videoCapabilities.getSupportedQualities(it.dynamicRange)
+    private fun hasCamcorderProfile(quality: Quality): Boolean {
+        if (cameraFacing == CameraFacing.FRONT && quality == Quality.FHD)
+            return false
+        val cameraIdInt = cameraId.toIntOrNull() ?: return true
+        val profileQuality = when (quality) {
+            Quality.SD -> CamcorderProfile.QUALITY_480P
+            Quality.HD -> CamcorderProfile.QUALITY_720P
+            Quality.FHD -> CamcorderProfile.QUALITY_1080P
+            Quality.UHD -> CamcorderProfile.QUALITY_2160P
+            else -> return true
+        }
+        return CamcorderProfile.hasProfile(cameraIdInt, profileQuality)
+    }
+
+    private val videoQualityForDynamicRanges = supportedVideoDynamicRanges.associateWith { dynamicRange ->
+        val qualities = videoCapabilities.getSupportedQualities(dynamicRange.dynamicRange)
+        qualities
+            .filter { hasCamcorderProfile(it) }
+            .toSet()
     }
 
     val supportedVideoQualities =
-        videoQualityForDynamicRanges.values.flatten().toSet().associateWith {
+        videoQualityForDynamicRanges.values.flatten().toSet().associateWith { quality ->
             VideoQualityInfo(
-                it,
+                quality,
                 supportedVideoFrameRates.toMutableSet().apply {
                     for ((frameRate, remove) in model.getAdditionalVideoFrameRates(
-                        cameraId, it
+                        cameraId, quality
                     )) {
                         if (remove) {
                             remove(frameRate)
@@ -76,7 +96,7 @@ class Camera(cameraInfo: CameraInfo, model: CameraViewModel) : BaseCamera(camera
                     }
                 }.toSet(),
                 videoQualityForDynamicRanges.entries.filter { dynamicRangeToQualities ->
-                    dynamicRangeToQualities.value.contains(it)
+                    dynamicRangeToQualities.value.contains(quality)
                 }.map { dynamicRangeToQualities -> dynamicRangeToQualities.key }.toSet()
             )
         }
