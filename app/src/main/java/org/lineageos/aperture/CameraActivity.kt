@@ -13,6 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Rect
@@ -1293,6 +1294,43 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                     Log.d(LOG_TAG, "Photo capture succeeded: ${output.savedUri}")
                     cameraState = CameraState.IDLE
                     shutterButton.isEnabled = true
+
+                    if (shouldSharpen(camera.cameraFacing == CameraFacing.BACK)) {
+                        try {
+                            if (photoOutputStream != null) {
+                                val processed = BitmapFactory.decodeByteArray(
+                                    photoOutputStream.toByteArray(), 0, photoOutputStream.size()
+                                ).unsharpMask(
+                                    this@CameraActivity,
+                                    UNSHARP_MASK_RADIUS,
+                                    UNSHARP_MASK_AMOUNT
+                                )
+                                Log.i("Dumbdroid", "Sharpening photo output")
+                                photoOutputStream.reset()
+                                processed.compress(Bitmap.CompressFormat.JPEG, 100, photoOutputStream)
+                            } else {
+                                output.savedUri?.let { uri ->
+                                    val bitmap = contentResolver.openInputStream(uri)?.use { input ->
+                                        BitmapFactory.decodeStream(input)
+                                    }
+                                    bitmap?.let {
+                                        val processed = it.unsharpMask(
+                                            this@CameraActivity,
+                                            UNSHARP_MASK_RADIUS,
+                                            UNSHARP_MASK_AMOUNT
+                                        )
+                                        Log.i("Dumbdroid", "Sharpening photo output")
+                                        contentResolver.openOutputStream(uri, "w")?.use { out ->
+                                            processed.compress(Bitmap.CompressFormat.JPEG, 100, out)
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(LOG_TAG, "Failed to apply unsharp mask", e)
+                        }
+                    }
+
                     if (!singleCaptureMode) {
                         onCapturedMedia(output.savedUri)
                         output.savedUri?.let {
@@ -1311,6 +1349,20 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 }
             }
         )
+    }
+
+    private fun shouldSharpen(cameraBackFacing : Boolean): Boolean {
+         // Android 12+ exposes SoC strings (e.g., "MT6762") via Build.SOC_MODEL
+         val isR77BySoc = Build.SOC_MODEL.contains("MT6762", ignoreCase = true)
+
+         // Fallbacks in case SOC_MODEL is unavailable or vendor left it blank
+         val model = Build.MODEL ?: ""
+         val product = Build.PRODUCT ?: ""
+         val brand = Build.BRAND ?: ""
+         val isR77ByBrand = model.contains("R77", true) || product.contains("r77", true) ||
+         brand.contains("doov", true)
+
+         return cameraBackFacing && (isR77BySoc || isR77ByBrand)
     }
 
     private fun captureVideo() {
@@ -2617,6 +2669,9 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
     companion object {
         private const val LOG_TAG = "Aperture"
+
+        private const val UNSHARP_MASK_RADIUS = 6
+        private const val UNSHARP_MASK_AMOUNT = 1.4f
 
         private const val MSG_HIDE_ZOOM_SLIDER = 0
         private const val MSG_HIDE_FOCUS_RING = 1

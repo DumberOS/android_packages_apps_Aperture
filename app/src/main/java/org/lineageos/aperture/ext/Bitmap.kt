@@ -5,7 +5,15 @@
 
 package org.lineageos.aperture.ext
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.renderscript.Allocation
+import android.renderscript.Element
+import android.renderscript.Matrix4f
+import android.renderscript.RenderScript
+import android.renderscript.ScriptIntrinsicBlend
+import android.renderscript.ScriptIntrinsicBlur
+import android.renderscript.ScriptIntrinsicColorMatrix
 import androidx.core.graphics.scale
 import org.lineageos.aperture.models.Transform
 import kotlin.math.abs
@@ -297,4 +305,49 @@ internal fun Bitmap.scale(maxSideLen: Int): Bitmap {
     } else {
         scale(newWidth, newHeight)
     }
+}
+
+internal fun Bitmap.unsharpMask(context: Context, radius: Int, amount: Float): Bitmap {
+    val rs = RenderScript.create(context)
+    val output = Bitmap.createBitmap(width, height, config)
+
+    val inputAlloc = Allocation.createFromBitmap(rs, this)
+    val blurAlloc = Allocation.createTyped(rs, inputAlloc.type)
+    val highpassAlloc = Allocation.createTyped(rs, inputAlloc.type)
+    val outputAlloc = Allocation.createFromBitmap(rs, output)
+
+    highpassAlloc.copyFrom(this)
+    outputAlloc.copyFrom(this)
+
+    ScriptIntrinsicBlur.create(rs, Element.U8_4(rs)).apply {
+        setRadius(radius.toFloat())
+        setInput(inputAlloc)
+        forEach(blurAlloc)
+        destroy()
+    }
+
+    val blend = ScriptIntrinsicBlend.create(rs, Element.U8_4(rs))
+    blend.forEachSubtract(blurAlloc, highpassAlloc)
+
+    ScriptIntrinsicColorMatrix.create(rs, Element.U8_4(rs)).apply {
+        setColorMatrix(
+            Matrix4f(
+                floatArrayOf(
+                    amount, 0f, 0f, 0f,
+                    0f, amount, 0f, 0f,
+                    0f, 0f, amount, 0f,
+                    0f, 0f, 0f, 1f
+                )
+            )
+        )
+        forEach(highpassAlloc, highpassAlloc)
+        destroy()
+    }
+
+    blend.forEachAdd(highpassAlloc, outputAlloc)
+    blend.destroy()
+
+    outputAlloc.copyTo(output)
+    rs.destroy()
+    return output
 }
