@@ -1658,15 +1658,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                                 null
                             }
                         )
-                        setVideoStabilizationMode(
-                            if (cameraMode == CameraMode.VIDEO &&
-                                sharedPreferences.videoStabilization
-                            ) {
-                                VideoStabilizationMode.getMode(camera)
-                            } else {
-                                VideoStabilizationMode.OFF
-                            }
-                        )
+                        setVideoStabilizationMode(VideoStabilizationMode.OFF)
                         sharedPreferences.edgeMode?.takeIf {
                             camera.supportedEdgeModes.contains(it) && when (cameraMode) {
                                 CameraMode.PHOTO -> photoCaptureMode !=

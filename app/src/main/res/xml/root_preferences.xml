@@ -77,13 +77,6 @@
         app:iconSpaceReserved="false"
         app:title="@string/video_header">
 
-        <SwitchPreference
-            app:defaultValue="true"
-            app:iconSpaceReserved="false"
-            app:key="video_stabilization"
-            app:summary="@string/video_stabilization_summary"
-            app:title="@string/video_stabilization_title" />
-
         <ListPreference
             app:defaultValue="off"
             app:entries="@array/video_mirror_mode_entries"
