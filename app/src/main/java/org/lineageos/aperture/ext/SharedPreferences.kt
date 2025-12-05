@@ -329,12 +329,6 @@ internal var SharedPreferences.leveler: Boolean
         putBoolean(LEVELER_KEY, value)
     }
 
-// Video stabilization
-private const val VIDEO_STABILIZATION_KEY = "video_stabilization"
-private const val VIDEO_STABILIZATION_DEFAULT = true
-internal val SharedPreferences.videoStabilization: Boolean
-    get() = getBoolean(VIDEO_STABILIZATION_KEY, VIDEO_STABILIZATION_DEFAULT)
-
 // Edge mode
 private const val EDGE_MODE_KEY = "edge_mode"
 private const val EDGE_MODE_DEFAULT = "default"
