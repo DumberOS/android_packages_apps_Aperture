@@ -1351,18 +1351,8 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         )
     }
 
-    private fun shouldSharpen(cameraBackFacing : Boolean): Boolean {
-         // Android 12+ exposes SoC strings (e.g., "MT6762") via Build.SOC_MODEL
-         val isR77BySoc = Build.SOC_MODEL.contains("MT6762", ignoreCase = true)
-
-         // Fallbacks in case SOC_MODEL is unavailable or vendor left it blank
-         val model = Build.MODEL ?: ""
-         val product = Build.PRODUCT ?: ""
-         val brand = Build.BRAND ?: ""
-         val isR77ByBrand = model.contains("R77", true) || product.contains("r77", true) ||
-         brand.contains("doov", true)
-
-         return cameraBackFacing && (isR77BySoc || isR77ByBrand)
+    private fun shouldSharpen(cameraBackFacing: Boolean): Boolean {
+        return cameraBackFacing && sharedPreferences.extraSharpening
     }
 
     private fun captureVideo() {

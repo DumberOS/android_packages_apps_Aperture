@@ -149,6 +149,7 @@
 
     <!-- Processing Preferences -->
     <string name="processing_info">On photo mode, when ZSL mode is used, only default and off values will be taken into consideration. For video mode, only default, off and fast values will be taken into consideration.</string>
+    <string name="extra_sharpening_title">Extra sharpening</string>
     <string name="edge_mode_title">Sharpening</string>
     <string name="edge_mode_summary">Edge enhancement improves sharpness and details in the captured image.</string>
     <string name="edge_mode_default">Default</string>
