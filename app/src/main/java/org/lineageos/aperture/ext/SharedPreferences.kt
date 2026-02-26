@@ -329,6 +329,13 @@ internal var SharedPreferences.leveler: Boolean
         putBoolean(LEVELER_KEY, value)
     }
 
+// Extra sharpening
+private const val EXTRA_SHARPENING_KEY = "extra_sharpening"
+private const val EXTRA_SHARPENING_DEFAULT = false
+
+internal val SharedPreferences.extraSharpening: Boolean
+    get() = getBoolean(EXTRA_SHARPENING_KEY, EXTRA_SHARPENING_DEFAULT)
+
 // Edge mode
 private const val EDGE_MODE_KEY = "edge_mode"
 private const val EDGE_MODE_DEFAULT = "default"

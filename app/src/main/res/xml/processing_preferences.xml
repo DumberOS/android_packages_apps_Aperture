@@ -14,6 +14,12 @@
             app:selectable="false"
             app:summary="@string/processing_info" />
 
+        <SwitchPreference
+            app:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="extra_sharpening"
+            app:title="@string/extra_sharpening_title" />
+
         <ListPreference
             app:defaultValue="default"
             app:entries="@array/edge_mode_entries"
