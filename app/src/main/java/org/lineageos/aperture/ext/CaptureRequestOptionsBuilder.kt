@@ -31,6 +31,14 @@ fun CaptureRequestOptions.Builder.setFrameRate(frameRate: FrameRate?) {
 }
 
 @androidx.camera.camera2.interop.ExperimentalCamera2Interop
+fun CaptureRequestOptions.Builder.setAutoWhiteBalanceDaylight() {
+    setCaptureRequestOption(
+        CaptureRequest.CONTROL_AWB_MODE,
+        CameraMetadata.CONTROL_AWB_MODE_DAYLIGHT
+    )
+}
+
+@androidx.camera.camera2.interop.ExperimentalCamera2Interop
 fun CaptureRequestOptions.Builder.setVideoStabilizationMode(videoStabilizationMode: VideoStabilizationMode) {
     setCaptureRequestOption(
         CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,

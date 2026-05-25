@@ -127,6 +127,10 @@ class Camera(cameraInfo: CameraInfo, model: CameraViewModel) : BaseCamera(camera
         }
     }.toList()
 
+    val supportsDaylightAwb = camera2CameraInfo.getCameraCharacteristic(
+        CameraCharacteristics.CONTROL_AWB_AVAILABLE_MODES
+    )?.contains(CameraMetadata.CONTROL_AWB_MODE_DAYLIGHT) == true
+
     val supportsZsl = cameraInfo.isZslSupported
 
     val cameraState = cameraInfo.cameraState

@@ -1641,6 +1641,9 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             cameraController.camera2CameraControl?.apply {
                 captureRequestOptions = CaptureRequestOptions.Builder()
                     .apply {
+                        if (camera.supportsDaylightAwb) {
+                            setAutoWhiteBalanceDaylight()
+                        }
                         setFrameRate(
                             if (cameraMode == CameraMode.VIDEO) {
                                 videoFrameRate
