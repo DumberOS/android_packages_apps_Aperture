@@ -66,6 +66,7 @@ import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.camera.view.ScreenFlashView
 import androidx.camera.view.onPinchToZoom
+import androidx.camera.view.setImageCaptureFlashType
 import androidx.camera.view.video.AudioConfig
 import androidx.camera.viewfinder.core.ZoomGestureDetector
 import androidx.cardview.widget.CardView
@@ -224,6 +225,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     private var videoMicMode by nonNullablePropertyDelegate { model.videoMicMode }
     private var videoRecording by nullablePropertyDelegate { model.videoRecording }
     private var videoDuration by nonNullablePropertyDelegate { model.videoRecordingDuration }
+    private var manualTorchFlashCaptureInProgress = false
 
     private lateinit var initialCameraFacing: CameraFacing
 
@@ -678,7 +680,9 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
         // Observe torch state
         cameraController.torchState.observe(this) {
-            flashMode = cameraController.flashMode
+            if (!manualTorchFlashCaptureInProgress) {
+                flashMode = cameraController.flashMode
+            }
         }
 
         // Observe focus state
@@ -1268,6 +1272,55 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             photoOutputStream
         )
 
+        if (shouldUseManualTorchFlashForPhoto()) {
+            manualTorchFlashCaptureInProgress = true
+            cameraController.imageCaptureFlashMode = ImageCapture.FLASH_MODE_OFF
+
+            val enableTorchFuture = cameraController.enableTorch(true)
+            enableTorchFuture.addListener(
+                {
+                    runCatching {
+                        enableTorchFuture.get()
+                    }.onSuccess {
+                        handler.postDelayed(
+                            {
+                                capturePhoto(
+                                    outputOptions,
+                                    photoOutputStream,
+                                    usingManualTorchFlash = true
+                                )
+                            },
+                            MANUAL_TORCH_FLASH_WARMUP_MILLIS
+                        )
+                    }.onFailure { error ->
+                        Log.w(LOG_TAG, "Failed to enable torch for flash capture", error)
+                        restoreCameraAfterManualTorchFlash()
+                        capturePhoto(outputOptions, photoOutputStream)
+                    }
+                },
+                ContextCompat.getMainExecutor(this)
+            )
+        } else {
+            capturePhoto(outputOptions, photoOutputStream)
+        }
+    }
+
+    private fun shouldUseManualTorchFlashForPhoto() =
+        cameraMode == CameraMode.PHOTO &&
+                flashMode == FlashMode.ON &&
+                camera.supportedFlashModes.contains(FlashMode.TORCH)
+
+    private fun restoreCameraAfterManualTorchFlash() {
+        cameraController.imageCaptureFlashMode = ImageCapture.FLASH_MODE_ON
+        cameraController.enableTorch(false)
+        manualTorchFlashCaptureInProgress = false
+    }
+
+    private fun capturePhoto(
+        outputOptions: ImageCapture.OutputFileOptions,
+        photoOutputStream: ByteArrayOutputStream?,
+        usingManualTorchFlash: Boolean = false
+    ) {
         // Set up image capture listener, which is triggered after photo has
         // been taken
         cameraController.takePicture(
@@ -1285,12 +1338,18 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 }
 
                 override fun onError(exc: ImageCaptureException) {
+                    if (usingManualTorchFlash) {
+                        restoreCameraAfterManualTorchFlash()
+                    }
                     Log.e(LOG_TAG, "Photo capture failed: ${exc.message}", exc)
                     cameraState = CameraState.IDLE
                     shutterButton.isEnabled = true
                 }
 
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    if (usingManualTorchFlash) {
+                        restoreCameraAfterManualTorchFlash()
+                    }
                     Log.d(LOG_TAG, "Photo capture succeeded: ${output.savedUri}")
                     cameraState = CameraState.IDLE
                     shutterButton.isEnabled = true
@@ -1562,6 +1621,16 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
         // Restore settings that needs a rebind
         cameraController.imageCaptureMode = photoCaptureMode
+        cameraController.setImageCaptureFlashType(
+            if (cameraMode == CameraMode.PHOTO &&
+                camera.supportedFlashModes.contains(FlashMode.TORCH)
+            ) {
+                // Some HALs only flash reliably when CameraX drives the LED as a torch.
+                ImageCapture.FLASH_TYPE_USE_TORCH_AS_FLASH
+            } else {
+                ImageCapture.FLASH_TYPE_ONE_SHOT_FLASH
+            }
+        )
 
         // Bind camera controller to lifecycle
         cameraController.bindToLifecycle(this)
@@ -2661,6 +2730,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         private const val MSG_ON_PINCH_TO_ZOOM = 3
 
         private const val SINGLE_CAPTURE_PHOTO_BUFFER_INITIAL_SIZE_BYTES = 8 * 1024 * 1024 // 8 MiB
+        private const val MANUAL_TORCH_FLASH_WARMUP_MILLIS = 200L
 
         // We need to return something small enough so as not to overwhelm Binder. 1MB is the
         // per-process limit across all transactions. Camera2 sets a max pixel count of 51200.
