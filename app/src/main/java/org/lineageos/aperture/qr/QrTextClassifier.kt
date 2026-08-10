@@ -84,6 +84,26 @@ class QrTextClassifier(
                     }
                     .build()
 
+                SCHEME_FDROID_REPO, SCHEME_FDROID_REPOS -> return TextClassification.Builder()
+                    .setText(text.toString())
+                    .setEntityType(TextClassifier.TYPE_URL, 1.0f)
+                    .apply {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            addAction(
+                                RemoteAction::class.build(
+                                    context,
+                                    R.drawable.ic_open_in_browser,
+                                    R.string.qr_uri_title,
+                                    R.string.qr_uri_content_description,
+                                    Intent(Intent.ACTION_VIEW).apply {
+                                        data = uri
+                                    }
+                                )
+                            )
+                        }
+                    }
+                    .build()
+
                 SCHEME_UPI -> return TextClassification.Builder()
                     .setText(context.getString(R.string.qr_upi_content_description))
                     .setEntityType(TextClassifier.TYPE_OTHER, 1.0f)
@@ -115,6 +135,8 @@ class QrTextClassifier(
 
     companion object {
         private const val SCHEME_DPP = "dpp"
+        private const val SCHEME_FDROID_REPO = "fdroidrepo"
+        private const val SCHEME_FDROID_REPOS = "fdroidrepos"
         private const val SCHEME_FIDO = "fido"
         private const val SCHEME_UPI = "upi"
     }
