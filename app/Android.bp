@@ -70,7 +70,7 @@ prebuilt_etc {
     product_specific: true,
     sub_dir: "sysconfig",
     src: "initial-package-stopped-states-org.lineageos.aperture.xml",
-    filename_from_src: true,
+    filename: "initial-package-stopped-states-org.dumberos.aperture.xml",
 }
 
 prebuilt_etc {
@@ -78,5 +78,5 @@ prebuilt_etc {
     product_specific: true,
     sub_dir: "sysconfig",
     src: "preinstalled-packages-org.lineageos.aperture.xml",
-    filename_from_src: true,
+    filename: "preinstalled-packages-org.dumberos.aperture.xml",
 }
