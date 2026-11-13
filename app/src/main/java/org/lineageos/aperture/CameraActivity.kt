@@ -2293,6 +2293,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     }
 
     private fun openGallery() {
+        val uri = galleryButtonUri
         lifecycleScope.launch {
             // secureMediaUris will be cleared if keyguard is unlocked
             // or none of the items were found.
@@ -2303,18 +2304,20 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             if (keyguardManager.isKeyguardLocked) {
                 // In this state the only thing we can do is launch a secure review intent
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                    && secureMediaUris.isNotEmpty()
+                    && uri != null && uri in secureMediaUris
                 ) {
+                    // Open the thumbnail's media, not the first capture in the secure session.
+                    val additionalUris = secureMediaUris.filter { it != uri }
                     val intent = Intent(
-                        MediaStore.ACTION_REVIEW_SECURE, secureMediaUris.first()
+                        MediaStore.ACTION_REVIEW_SECURE, uri
                     ).apply {
                         flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        if (secureMediaUris.size > 1) {
+                        if (additionalUris.isNotEmpty()) {
                             clipData = ClipData.newUri(
-                                contentResolver, null, secureMediaUris[1]
+                                contentResolver, null, additionalUris.first()
                             ).apply {
-                                for (i in 2 until secureMediaUris.size) {
-                                    addItem(contentResolver, ClipData.Item(secureMediaUris[i]))
+                                for (additionalUri in additionalUris.drop(1)) {
+                                    addItem(contentResolver, ClipData.Item(additionalUri))
                                 }
                             }
                         }
@@ -2326,7 +2329,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 }
             }
 
-            galleryButtonUri?.also { uri ->
+            uri?.also { uri ->
                 // Try to open the Uri in the non secure gallery
                 dismissKeyguardAndRun {
                     mutableListOf<String>().apply {
