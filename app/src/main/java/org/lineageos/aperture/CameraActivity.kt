@@ -36,6 +36,7 @@ import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.OrientationEventListener
+import android.view.Surface
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
@@ -67,6 +68,7 @@ import androidx.camera.view.PreviewView
 import androidx.camera.view.ScreenFlashView
 import androidx.camera.view.onPinchToZoom
 import androidx.camera.view.setImageCaptureFlashType
+import androidx.camera.view.takePictureWithRotation
 import androidx.camera.view.video.AudioConfig
 import androidx.camera.viewfinder.core.ZoomGestureDetector
 import androidx.cardview.widget.CardView
@@ -820,29 +822,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         }
 
         shutterButton.setOnClickListener {
-            // Shutter animation
-            when (cameraMode) {
-                CameraMode.PHOTO -> startShutterAnimation(ShutterAnimation.PhotoCapture)
-                CameraMode.VIDEO -> {
-                    if (countDownView.cancelCountDown()) {
-                        startShutterAnimation(ShutterAnimation.VideoEnd)
-                        return@setOnClickListener
-                    }
-                    if (cameraState == CameraState.IDLE) {
-                        startShutterAnimation(ShutterAnimation.VideoStart)
-                    }
-                }
-
-                else -> {}
-            }
-
-            startTimerAndRun {
-                when (cameraMode) {
-                    CameraMode.PHOTO -> takePhoto()
-                    CameraMode.VIDEO -> captureVideo()
-                    else -> {}
-                }
-            }
+            onShutterClick()
         }
 
         galleryButtonCardView.setOnClickListener { openGallery() }
@@ -1243,7 +1223,34 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         }
     }
 
-    private fun takePhoto() {
+    private fun onShutterClick(forceLandscape: Boolean = false) {
+        // Shutter animation
+        when (cameraMode) {
+            CameraMode.PHOTO -> startShutterAnimation(ShutterAnimation.PhotoCapture)
+            CameraMode.VIDEO -> {
+                if (countDownView.cancelCountDown()) {
+                    startShutterAnimation(ShutterAnimation.VideoEnd)
+                    return
+                }
+                if (cameraState == CameraState.IDLE) {
+                    startShutterAnimation(ShutterAnimation.VideoStart)
+                }
+            }
+
+            else -> {}
+        }
+
+        // Keep the capture orientation with this request, including during the countdown.
+        startTimerAndRun {
+            when (cameraMode) {
+                CameraMode.PHOTO -> takePhoto(forceLandscape)
+                CameraMode.VIDEO -> captureVideo()
+                else -> {}
+            }
+        }
+    }
+
+    private fun takePhoto(forceLandscape: Boolean = false) {
         // Bail out if a photo is already being taken
         if (cameraState == CameraState.TAKING_PHOTO) {
             return
@@ -1251,6 +1258,9 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
         cameraState = CameraState.TAKING_PHOTO
         shutterButton.isEnabled = false
+
+        // Volume-key photos assume the top of the phone points left, without needing sensors.
+        val targetRotation = Surface.ROTATION_90.takeIf { forceLandscape }
 
         val photoOutputStream = if (singleCaptureMode) {
             ByteArrayOutputStream(SINGLE_CAPTURE_PHOTO_BUFFER_INITIAL_SIZE_BYTES)
@@ -1287,6 +1297,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                                 capturePhoto(
                                     outputOptions,
                                     photoOutputStream,
+                                    targetRotation,
                                     usingManualTorchFlash = true
                                 )
                             },
@@ -1295,13 +1306,13 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                     }.onFailure { error ->
                         Log.w(LOG_TAG, "Failed to enable torch for flash capture", error)
                         restoreCameraAfterManualTorchFlash()
-                        capturePhoto(outputOptions, photoOutputStream)
+                        capturePhoto(outputOptions, photoOutputStream, targetRotation)
                     }
                 },
                 ContextCompat.getMainExecutor(this)
             )
         } else {
-            capturePhoto(outputOptions, photoOutputStream)
+            capturePhoto(outputOptions, photoOutputStream, targetRotation)
         }
     }
 
@@ -1319,11 +1330,13 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     private fun capturePhoto(
         outputOptions: ImageCapture.OutputFileOptions,
         photoOutputStream: ByteArrayOutputStream?,
+        targetRotation: Int?,
         usingManualTorchFlash: Boolean = false
     ) {
         // Set up image capture listener, which is triggered after photo has
         // been taken
-        cameraController.takePicture(
+        cameraController.takePictureWithRotation(
+            targetRotation,
             outputOptions,
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
@@ -2589,6 +2602,14 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 changeCameraRight()
                 return true
             }
+            if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+                event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+            ) {
+                if (shutterButton.isEnabled) {
+                    onShutterClick(forceLandscape = true)
+                }
+                return true
+            }
             if (event.action == KeyEvent.ACTION_UP) {
                 shutterButton.performClick()  // or call your actual capture method
                 return true
@@ -2685,7 +2706,11 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         when (sharedPreferences.getHardwareKeyAction(hardwareKey)) {
             GestureAction.SHUTTER -> {
                 if (cameraMode != CameraMode.QR && shutterButton.isEnabled) {
-                    shutterButton.performClick()
+                    if (hardwareKey == HardwareKey.VOLUME) {
+                        onShutterClick(forceLandscape = true)
+                    } else {
+                        shutterButton.performClick()
+                    }
                 }
                 true
             }
