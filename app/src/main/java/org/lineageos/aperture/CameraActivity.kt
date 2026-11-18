@@ -2596,6 +2596,19 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (capturePreviewLayout.isVisible) {
+            return super.dispatchKeyEvent(event)
+        }
+
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled &&
+                cameraMode != CameraMode.QR && shutterButton.isEnabled
+            ) {
+                shutterButton.performClick()
+            }
+            return true
+        }
+
         if (event.action == KeyEvent.ACTION_UP) {
             if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 changeCameraLeft()
@@ -2603,18 +2616,6 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             }
             if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 changeCameraRight()
-                return true
-            }
-            if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
-                event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
-            ) {
-                if (shutterButton.isEnabled) {
-                    onShutterClick(forceLandscape = true)
-                }
-                return true
-            }
-            if (event.action == KeyEvent.ACTION_UP) {
-                shutterButton.performClick()  // or call your actual capture method
                 return true
             }
         }
@@ -2641,6 +2642,11 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
         when (gestureAction) {
             GestureAction.SHUTTER -> {
+                // D-pad center is handled by dispatchKeyEvent; only volume keys are
+                // allowed to use the configurable hardware shutter action.
+                if (hardwareKey != HardwareKey.VOLUME) {
+                    return@let true
+                }
                 if (cameraMode == CameraMode.VIDEO && shutterButton.isEnabled &&
                     event?.repeatCount == 0
                 ) {
@@ -2708,12 +2714,11 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
         when (sharedPreferences.getHardwareKeyAction(hardwareKey)) {
             GestureAction.SHUTTER -> {
+                if (hardwareKey != HardwareKey.VOLUME || event?.isCanceled == true) {
+                    return@let true
+                }
                 if (cameraMode != CameraMode.QR && shutterButton.isEnabled) {
-                    if (hardwareKey == HardwareKey.VOLUME) {
-                        onShutterClick(forceLandscape = true)
-                    } else {
-                        shutterButton.performClick()
-                    }
+                    onShutterClick(forceLandscape = true)
                 }
                 true
             }
@@ -2732,7 +2737,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
             GestureAction.DEFAULT -> {
                 if (hardwareKey.supportsDefault) {
-                    super.onKeyDown(keyCode, event)
+                    super.onKeyUp(keyCode, event)
                 } else {
                     Log.wtf(
                         LOG_TAG,
